@@ -1,0 +1,5 @@
+identity.txt
+files
+images
+!files/.gitfolder
+!images/.gitfolder
