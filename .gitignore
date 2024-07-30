@@ -1,5 +1,5 @@
 identity.txt
-files
-images
+files/*
+images/*
 !files/.gitfolder
 !images/.gitfolder
