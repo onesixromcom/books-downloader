@@ -98,7 +98,6 @@ get_cookie()
 	grep ".*$2" | cut -f7
 }
 
-
 get_book_author()
 {
 	cat $1 |
@@ -178,6 +177,8 @@ process_images()
 			if [ -z "$(echo $image | grep facebook)" ]; then
 				IMAGES_URLS+=("$image")
 				FNAME=$(basename $image)
+				# Change extesion to jpg.
+				FNAME="${FNAME%.*}.jpg"
 				PAGE_TEXT=`echo "$PAGE_TEXT" | sed -e "s|$image|#$FNAME|g"`
 				#echo "Image was found in the text $FNAME"
 			else
@@ -190,7 +191,6 @@ process_images()
 	PAGE_TEXT=`echo "$PAGE_TEXT" | sed -e "s|src=|l:href=|g"`
 	PAGE_TEXT=`echo "$PAGE_TEXT" | sed -e "s|img|image|g"`
 }
-
   
 write_fb2_header()
 {
@@ -217,9 +217,12 @@ write_fb2_footer()
 	for image in "${IMAGES_URLS[@]}";
 	do
 		FNAME=$(basename $image)
-		echo "<binary id=\"$FNAME\" content-type=\"image/jpeg\">" >> "$FILENAME";
+		FNAME_JPEG="${FNAME%.*}.jpg"
+		echo "<binary id=\"$FNAME_JPEG\" content-type=\"image/jpeg\">" >> "$FILENAME";
 		wget -O $IMAGES_DIR/$FNAME --no-verbose --quiet $image
-		base64 $IMAGES_DIR/$FNAME >> "$FILENAME";
+		# Converting images to JPG format.
+		convert -quality 50 $IMAGES_DIR/$FNAME $IMAGES_DIR/$FNAME_JPEG
+		base64 $IMAGES_DIR/$FNAME_JPEG >> "$FILENAME";
 		echo '</binary>' >> "$FILENAME";
 	done
 
@@ -291,6 +294,7 @@ if [ -z "$TOTALPAGES" ] && [ -z "$INCOMPLETE_DOWNLOAD" ]; then
 	exit;
 fi
 
+FILENAME="$BOOKS_DIR/$FILENAME"
 echo "Book will be saved to $FILENAME" 
 
 IMAGE_COVER_URL=$(get_meta_property $PAGE_HTML "og:image")
@@ -350,7 +354,7 @@ do
 	write_fb2_text 
 
 	if [ "$TOTALPAGES" -gt 1 ]; then
-		echo "chapter has pages: $TOTALPAGES"
+		# echo "chapter has pages: $TOTALPAGES"
 		for (( i=2; i <= $TOTALPAGES; ++i ))
 		do
 		echo "Process chapter: $CHAPTER_NUM page: $i"
