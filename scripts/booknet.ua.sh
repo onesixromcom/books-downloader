@@ -1,24 +1,10 @@
 #!/bin/bash
 
-# Store arguments in a special array 
-args=("$@")
-URL=""
-regex='(https?|ftp|file)://[-[:alnum:]\+&@#/%?=~_|!:,.;]*[-[:alnum:]\+&@#/%=~_|]'
-if [[ ${args[0]} =~ $regex ]]
-then 
-    URL=${args[0]}
-    unset args[0]
-fi
-
 FILE_IDENTITY=""
 # Cookie for authenticated download
 COOKIE_IDENTITY=""
 # Flag to force download of incomplete book.
 INCOMPLETE_DOWNLOAD=""
-FILES_DIR="files"
-# Folder to store temprorary downloaded images
-IMAGES_DIR="images"
-BOOKS_DIR="/home/public/Books/booknet_ua"
 # Store images urls in array to process at the end of the file.
 IMAGES_URLS=()
 # Main book cover image.
@@ -28,35 +14,23 @@ IMAGE_COVER_URL=""
 COOKIES_FILE="$FILES_DIR/cookies.txt"
 AJAX_RESPONSE_FILE="$FILES_DIR/ajax_response.json"
 PAGE_HTML="$FILES_DIR/book_ua_page.html"
+# Save info from your cookie form the browser
+# to donwload the books you've bought.
+FILE_IDENTITY="./identity.txt"
+FILE_CSRF="./csrf.txt"
 
+CSRF=""
+# Global variable with the book's text.
 PAGE_TEXT=""
 
 for i in "${args[@]}"; do
-  case "$i" in
-    --identity*)
-      FILE_IDENTITY="./identity.txt"
-      ;;
-    --incomplete*)
-      INCOMPLETE_DOWNLOAD="1"
-	  ;;  
-    --debug)
-      DEBUG="1"
-      ;;
-    --help)
-	  echo "Usage: ./booknet_ua.sh https://booknet.ua/reader/mainpage-1234566"
-	  echo "Params:"
-	  echo "--identity - Using identity.txt file where you should place value from _identity cookie when you're logged in."
-	  echo "--incomplete - Download book even if it's not full (non-free)"
-      exit
-	  ;;
-	--clean)
-	  #echo "Clear all variables and tmp segments."
-	  #rm -rf $VARS_DIR/*
-	  #rm -rf $OUTPUT_SEGMENTS/*
-	  ;;  
-    *)
-  esac
-  shift
+case "$i" in
+	--incomplete*)
+	INCOMPLETE_DOWNLOAD="1"
+	;;  
+	*)
+esac
+shift
 done
 
 if [ ! -z "$FILE_IDENTITY" ]; then
@@ -66,30 +40,16 @@ if [ ! -z "$FILE_IDENTITY" ]; then
 	fi
 fi
 
-
-# Check if link to page is present.
-if [ -z "$URL" ]; then
-    echo "No url or incorret url supplied. Please use collection name. (ex: https://booknet.ua/reader/smttyar-b155659)"
-    exit
-fi 
+if [ ! -z "$FILE_CSRF" ]; then
+	if test -f "$FILE_CSRF"; then
+		CSRF_VALUE=$(< "$FILE_CSRF")
+		COOKIE_CSRF="_csrf=$CSRF_VALUE;"
+	fi
+fi
 
 if [ ! -z "$COOKIE_IDENTITY" ]; then
 	echo ">>> Using Identity in requests. All bought content should be available <<<"
 fi
-
-# Get META content attr by property attr.
-get_meta_property()
-{
-	grep -r ".*<meta property=\"$2\" content=\"\(.*\)\"" $1 |
-	sed -e "s/.* content=\"\(.*\)\".*/\1/"
-}
-
-# Get META content attr by name attr.
-get_meta_name()
-{
-	grep -r ".*<meta name=\"$2\" content=\"\(.*\)\"" $1|
-	sed -e "s/.* content=\"\(.*\)\".*/\1/"
-}
 
 # Get cookie from curl saved cookies file.
 get_cookie()
@@ -138,27 +98,36 @@ get_chapters_names()
 }
 
 # $1 - URL
-# $2 - page url with chapter
+# $2 - chapter num
 # $3 - page num
 get_ajax_page()
 {
 	curl 'https://booknet.ua/reader/get-page' \
 	-H 'accept: application/json, text/javascript, */*; q=0.01' \
+	-H 'accept-language: en-US,en;q=0.9' \
+	-H 'cache-control: no-cache' \
 	-H 'content-type: application/x-www-form-urlencoded; charset=UTF-8' \
-	-H "cookie: _csrf=$CSRF_COOKIE;$COOKIE_IDENTITY" \
-	-H "referer: $1?c=$2" \
+	-b "$COOKIE_CSRF;$COOKIE_IDENTITY;" \
+	-H 'origin: https://booknet.ua' \
+	-H 'pragma: no-cache' \
+	-H 'priority: u=1, i' \
+	-H "referer: $1" \
+	-H 'sec-ch-ua: "Not)A;Brand";v="8", "Chromium";v="138"' \
+	-H 'sec-ch-ua-mobile: ?0' \
+	-H 'sec-ch-ua-platform: "Linux"' \
+	-H 'sec-fetch-dest: empty' \
+	-H 'sec-fetch-mode: cors' \
+	-H 'sec-fetch-site: same-origin' \
+	-H 'user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36' \
 	-H "x-csrf-token: $CSRF_TOKEN" \
+	-H 'x-requested-with: XMLHttpRequest' \
 	-o "$AJAX_RESPONSE_FILE" \
-	-X POST \
 	--silent \
-	--data-raw "chapterId=$2&page=$3&_csrf=$CSRF_TOKEN" 
-}
+	--data-raw "chapterId=$2&page=$3&_csrf=$CSRF_TOKEN"
 
-# Simple solution to get json value by key.
-get_json_val()
-{
-	cat $1 | \
-	php -r "echo json_decode(file_get_contents('php://stdin'))->$2 ?? '';"
+	# debug data
+	#cp "$AJAX_RESPONSE_FILE" "$FILES_DIR/$2-$3.json"
+	#get_json_val $AJAX_RESPONSE_FILE data > "$FILES_DIR/$2-$3.data"
 }
 
 process_images()
@@ -166,9 +135,9 @@ process_images()
 	PAGE_TEXT=$(echo "$PAGE_TEXT" | sed -e 's|&amp;|\&|g')
 	
 	IMAGES_TMP=($(echo "$PAGE_TEXT" |
-	hxnormalize -x -e -s |
-	hxselect -i img |
-	hxwls
+		hxnormalize -x -e -s |
+		hxselect -i img |
+		hxwls
 	))
 	
 	for image in "${IMAGES_TMP[@]}";
@@ -247,35 +216,52 @@ write_fb2_text()
 {
 	PAGE_TEXT="$1"
 	process_images
-	echo "$PAGE_TEXT" >> "$FILENAME";
-	#echo "$(process_images "$1")" >> "$FILENAME";
-		#IMAGES_URLS_TOTAL="${#IMAGES_URLS[@]}"
-	#echo "Images to process: $IMAGES_URLS_TOTAL"
+	echo "$PAGE_TEXT" >> "$FILENAME"
 }
 
 
 token_refresh()
 {
+	#echo "-> Refresh request tokens."
+	#echo "$COOKIE_CSRF;$COOKIE_IDENTITY"
 	# Get page and save cookies.
 	if [ ! -z "$COOKIE_IDENTITY" ]; then
-		curl -o "$PAGE_HTML" --silent --no-verbose --cookie-jar $COOKIES_FILE -H "cookie:$COOKIE_IDENITY" $URL
+		curl $URL\
+		-b "$COOKIE_CSRF;$COOKIE_IDENTITY" \
+		-H 'pragma: no-cache' \
+		-H 'priority: u=0, i' \
+		-H 'sec-ch-ua: "Not)A;Brand";v="8", "Chromium";v="138"' \
+		-H 'sec-ch-ua-mobile: ?0' \
+		-H 'sec-ch-ua-platform: "Linux"' \
+		-H 'sec-fetch-dest: document' \
+		-H 'sec-fetch-mode: navigate' \
+		-H 'sec-fetch-site: none' \
+		-H 'sec-fetch-user: ?1' \
+		-H 'service-worker-navigation-preload: true' \
+		-H 'upgrade-insecure-requests: 1' \
+		-H 'user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36' \
+		-o "$PAGE_HTML" --silent --no-verbose 
 	else
 		curl -o "$PAGE_HTML" --silent --no-verbose --cookie-jar $COOKIES_FILE $URL
+		CSRF=$(get_cookie $COOKIES_FILE "_csrf")
+		COOKIE_CSRF="_csrf=$CSRF"
 	fi
 	
 	CSRF_TOKEN=$(get_meta_name $PAGE_HTML "csrf-token")
-	CSRF_COOKIE=$(get_cookie $COOKIES_FILE "_csrf")
+	
+	#echo "csrf-token: $CSRF_TOKEN"
+	#echo "cookie _csrf: $COOKIE_CSRF"
 }
+
 #================== START ==================
 
+process_book()
+{
 # Edit url to reader page.
-echo "booknet.ua downloader is starting..."
-
 URL=$(echo "$URL" | sed "s/\/book\//\/reader\//")
 FILENAME=$(echo "$URL" | sed "s/https:\/\/booknet.ua\/reader\///" | sed 's/.html.*//' | sed -e 's/^[0-9]\+-*//g').fb2
 
-if [ -f "$PAGE_HTML" ]; then rm "$PAGE_HTML";  fi
-# if [ -f "./cover.jpg" ]; then rm "./cover.jpg"; fi
+# if [ -f "$PAGE_HTML" ]; then rm "$PAGE_HTML";  fi
 
 rm -rf $IMAGES_DIR/*.**
 rm -rf $FILES_DIR/*.**
@@ -290,7 +276,7 @@ get_ajax_page $URL ${CHAPTERS[$CHAPTERS_TOTAL]} 1
 TOTALPAGES=$(get_json_val $AJAX_RESPONSE_FILE totalPages)
 
 if [ -z "$TOTALPAGES" ] && [ -z "$INCOMPLETE_DOWNLOAD" ]; then
-	echo "!! Complete book is not available. You should pay for it !!"
+	echo -e "$CRed !! Complete book is not available. You should pay for it !! $CN"
 	exit;
 fi
 
@@ -306,13 +292,13 @@ echo $BOOK_AUTHOR
 echo $BOOK_TITLE
 echo $BOOK_DESCRIPTION
 
+$ Get book genre.
 readarray -t BOOK_GENRE_TMP < <(get_book_genre $PAGE_HTML)
 IFS=\, eval 'BOOK_GENRE="${BOOK_GENRE_TMP[*]}"'
 echo $BOOK_GENRE
 
-
+# Get chapters names.
 readarray -t CHAPTERS_NAMES < <(get_chapters_names $PAGE_HTML)
-
 
 if [ -z "$CHAPTERS" ]; then
 	echo "No chapters were found! exit";
@@ -350,8 +336,7 @@ do
 	
 
 	# Write data text.
-	PAGE_TEXT="$(get_json_val $AJAX_RESPONSE_FILE data)"
-	write_fb2_text 
+	write_fb2_text "$(get_json_val $AJAX_RESPONSE_FILE data)"
 
 	if [ "$TOTALPAGES" -gt 1 ]; then
 		# echo "chapter has pages: $TOTALPAGES"
@@ -372,4 +357,4 @@ done
 
 write_fb2_footer
 
-echo "booknet.ua downloader finished."
+}

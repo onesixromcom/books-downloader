@@ -1,16 +1,5 @@
 #!/bin/bash
 
-# store arguments in a special array 
-args=("$@") 
-
-URL=${args[0]}
-
-# Check if link to page is present.
-if [ -z "$URL" ]; then
-    echo "No url supplied. Please set collection name. (ex: https://readukrainianbooks.com/6340-faktor-cherchillja-jak-odna-ljudina-zminila-istoriju-boris-dzhonson.html)"
-    exit
-fi 
-
 get_book_text()
 {
 	cat $1 |
@@ -93,9 +82,7 @@ get_pages_list()
 
 write_fb2_header()
 {
-	if [ -f "$FILENAME" ]; then
-		rm "$FILENAME"
-	fi
+	if [ -f "$FILENAME" ]; then	rm "$FILENAME"; fi
 	touch "$FILENAME";
 	echo '<?xml version="1.0" encoding="utf-8"?><FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">' > "$FILENAME";
 }
@@ -106,8 +93,8 @@ write_fb2_footer()
 	if [ ! -z "$IMG" ]; then
 		IMG="https://readukrainianbooks.com$IMG"
 		echo '<binary id="cover.jpg" content-type="image/jpeg">' >> "$FILENAME";
-		wget -O ./cover.jpg --no-verbose --quiet $IMG
-		base64 ./cover.jpg >> "$FILENAME";
+		wget -O "$IMAGES_DIR/cover.jpg" --no-verbose --quiet $IMG
+		base64 "$IMAGES_DIR/cover.jpg" >> "$FILENAME";
 		echo '</binary>' >> "$FILENAME";
 	fi 
 
@@ -134,20 +121,16 @@ write_fb2_text()
 }
 
 #================== START ==================
-
-echo "readukrainianbooks.com downloader is starting..."
+process_book()
+{
 FILENAME=$(echo "$URL" | sed "s/https:\/\/readukrainianbooks.com\///" | sed 's/.html.*//' | sed -e 's/^[0-9]\+-*//g').fb2
-PAGE_HTML="./page1.html"
-
-if [ -f "$PAGE_HTML" ]; then rm "$PAGE_HTML" 
-fi
-if [ -f "./cover.jpg" ]; then rm "./cover.jpg" 
-fi
+PAGE_HTML="$FILES_DIR/readukrainianbooks_page1.html"
 	
 # Download and save file to process
 wget -O "$PAGE_HTML" --no-verbose --quiet $URL
 
-echo $FILENAME
+FILENAME="$BOOKS_DIR/$FILENAME"
+echo "Book will be saved to $FILENAME"
 
 IMG=$(get_book_image_url $PAGE_HTML)
 
@@ -176,4 +159,4 @@ done
 
 write_fb2_footer
 
-echo "readukrainianbooks.com downloader finished."
+}
