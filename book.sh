@@ -6,6 +6,7 @@ VERSION="0.3"
 PROGRAM_NAME="Books Downloader"
 SUPPORTER_PROVIDERS=("booknet.ua" "readukrainianbooks.com")
 PROVIDER_NAME=""
+PACKER="FB2"
 
 # Colors 
 CGreen='\033[0;32m' # Green

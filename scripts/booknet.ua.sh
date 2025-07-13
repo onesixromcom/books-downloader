@@ -130,42 +130,9 @@ get_ajax_page()
 	#get_json_val $AJAX_RESPONSE_FILE data > "$FILES_DIR/$2-$3.data"
 }
 
-process_images()
-{
-	PAGE_TEXT=$(echo "$PAGE_TEXT" | sed -e 's|&amp;|\&|g')
-	
-	IMAGES_TMP=($(echo "$PAGE_TEXT" |
-		hxnormalize -x -e -s |
-		hxselect -i img |
-		hxwls
-	))
-	
-	for image in "${IMAGES_TMP[@]}";
-	do
-		if [ ! -z "$image" ]; then
-			if [ -z "$(echo $image | grep facebook)" ]; then
-				IMAGES_URLS+=("$image")
-				FNAME=$(basename $image)
-				# Change extesion to jpg.
-				FNAME="${FNAME%.*}.jpg"
-				PAGE_TEXT=`echo "$PAGE_TEXT" | sed -e "s|$image|#$FNAME|g"`
-				#echo "Image was found in the text $FNAME"
-			else
-				# Replace img urls from the text.
-				PAGE_TEXT=`echo "$PAGE_TEXT" | sed -e "s|$image|#pixel.jpg|g"`
-			fi
-		fi
-	done
-	
-	PAGE_TEXT=`echo "$PAGE_TEXT" | sed -e "s|src=|l:href=|g"`
-	PAGE_TEXT=`echo "$PAGE_TEXT" | sed -e "s|img|image|g"`
-}
-  
 write_fb2_header()
 {
-	if [ -f "$FILENAME" ]; then
-		rm "$FILENAME"
-	fi
+	if [ -f "$FILENAME" ]; then rm "$FILENAME"; fi
 	touch "$FILENAME";
 	echo '<?xml version="1.0" encoding="utf-8"?><FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">' > "$FILENAME";
 }
@@ -219,6 +186,36 @@ write_fb2_text()
 	echo "$PAGE_TEXT" >> "$FILENAME"
 }
 
+process_images()
+{
+	PAGE_TEXT=$(echo "$PAGE_TEXT" | sed -e 's|&amp;|\&|g')
+
+	IMAGES_TMP=($(echo "$PAGE_TEXT" |
+		hxnormalize -x -e -s |
+		hxselect -i img |
+		hxwls
+	))
+	# TODO: check filesize before processing
+	for image in "${IMAGES_TMP[@]}";
+	do
+		if [ ! -z "$image" ]; then
+			if [ -z "$(echo $image | grep facebook)" ]; then
+				IMAGES_URLS+=("$image")
+				FNAME=$(basename $image)
+				# Change extesion to jpg.
+				FNAME="${FNAME%.*}.jpg"
+				PAGE_TEXT=`echo "$PAGE_TEXT" | sed -e "s|$image|#$FNAME|g"`
+				#echo "Image was found in the text $FNAME"
+			else
+				# Replace img urls from the text.
+				PAGE_TEXT=`echo "$PAGE_TEXT" | sed -e "s|$image|#pixel.jpg|g"`
+			fi
+		fi
+	done
+
+	PAGE_TEXT=`echo "$PAGE_TEXT" | sed -e "s|src=|l:href=|g"`
+	PAGE_TEXT=`echo "$PAGE_TEXT" | sed -e "s|img|image|g"`
+}
 
 token_refresh()
 {
@@ -288,14 +285,14 @@ BOOK_TITLE=$(get_meta_property $PAGE_HTML "og:title")
 BOOK_DESCRIPTION=$(get_meta_property $PAGE_HTML "og:description")
 BOOK_AUTHOR=$(get_book_author $PAGE_HTML)
 
-echo $BOOK_AUTHOR
-echo $BOOK_TITLE
-echo $BOOK_DESCRIPTION
+echo "Author: $BOOK_AUTHOR"
+echo "Title: $BOOK_TITLE"
+echo "Description: $BOOK_DESCRIPTION"
 
-$ Get book genre.
+# Get book genre.
 readarray -t BOOK_GENRE_TMP < <(get_book_genre $PAGE_HTML)
 IFS=\, eval 'BOOK_GENRE="${BOOK_GENRE_TMP[*]}"'
-echo $BOOK_GENRE
+echo "Genre: $BOOK_GENRE"
 
 # Get chapters names.
 readarray -t CHAPTERS_NAMES < <(get_chapters_names $PAGE_HTML)
