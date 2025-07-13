@@ -176,6 +176,7 @@ write_fb2_description()
 	if [ ! -z "$IMAGE_COVER_URL" ]; then
 		echo '<coverpage><image l:href="#cover.jpg"></image></coverpage>' >> "$FILENAME";
 	fi
+	# echo '<lang>ua</lang></title-info></description><body>' >> "$FILENAME";
 	echo '<lang>ua</lang></title-info></description><body xmlns:fb="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:xlink="http://www.w3.org/1999/xlink">' >> "$FILENAME";
 }
 

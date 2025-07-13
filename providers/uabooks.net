@@ -1,0 +1,80 @@
+#!/bin/bash
+
+# Website is using DLE engine.
+# Books saved to the localstorage.
+
+# Global variables
+BOOK_ID=""
+BOOK_TOTAL_PAGES=""
+IMAGES_DOMAIN="https://uabooks.net"
+
+process_book()
+{
+	PAGE_HTML="$FILES_DIR/uabooks_page1.html"
+	PAGE_READER="$FILES_DIR/uabooks_reader.html"
+	BOOK_JSON="$FILES_DIR/book.json"
+
+	# Download and save file to process
+	wget -O "$PAGE_HTML" --no-verbose --quiet $URL
+
+	# Get Book ID.
+	# https://uabooks.net/520-piranezi.html
+	BOOK_ID=$( echo $URL | sed 's/.*\/\([0-9]*\)-.*/\1/' )
+	# https://uabooks.net/reader/520/page/6/
+	# BOOK_ID=$( echo $URL | grep -o '/reader/[0-9]*' | grep -o '[0-9]*' )
+	echo "Book ID: $BOOK_ID"
+
+	FILENAME=$( echo "$URL" | sed 's/.*\/\([^.]*\)\.html/\1/' )
+	FILENAME="$BOOKS_DIR/$FILENAME.fb2"
+	echo "Filename: $FILENAME"
+
+	IMAGE_COVER_URL=$(get_meta_property $PAGE_HTML "og:image")
+
+	URL_READER="https://uabooks.net/reader/$BOOK_ID"
+	# Download Reader page.
+	wget -O "$PAGE_READER" --no-verbose --quiet $URL_READER
+
+	# Get total pages.
+	BOOK_TOTAL_PAGES=$( cat "$PAGE_READER" | sed -n 's/.*data-totalPages="\([^"]\+\).*/\1/p' )
+	BOOK_TOTAL_PAGES=$(($BOOK_TOTAL_PAGES - 1))
+	echo "Total pages $BOOK_TOTAL_PAGES"
+
+	BOOK_DESCRIPTION=$(get_meta_property $PAGE_HTML "og:description")
+	BOOK_TITLE=$( cat "$PAGE_READER" | hxnormalize -x | hxselect -i -c ".book-ajax-content .section__title > a" | tr -s ' ' | tr -d '\r' | tr -d '\n' )
+	BOOK_AUTHOR=$( cat "$PAGE_READER" | hxnormalize -x | hxselect -i -c ".book-ajax-content .section__title div > a" | tr -s ' ' | tr -d '\r' | tr -d '\n')
+
+	echo "Title: $BOOK_TITLE"
+	echo "Author: $BOOK_AUTHOR"
+
+	# Make request to get all book for localStorage.
+	curl "https://uabooks.net/engine/ajax/controller.php?mod=reader&id=$BOOK_ID&cstart=0&cstop=$BOOK_TOTAL_PAGES&type=contents" \
+		--request GET \
+		-H 'accept: */*' \
+		-H 'accept-language: en-US,en;q=0.9' \
+		-H 'cache-control: no-cache' \
+		-H 'pragma: no-cache' \
+		-H 'priority: u=1, i' \
+		-H "referer: $URL_READER" \
+		-H 'sec-ch-ua: "Not)A;Brand";v="8", "Chromium";v="138"' \
+		-H 'sec-ch-ua-mobile: ?0' \
+		-H 'sec-ch-ua-platform: "Linux"' \
+		-H 'sec-fetch-dest: empty' \
+		-H 'sec-fetch-mode: cors' \
+		-H 'sec-fetch-site: same-origin' \
+		-H 'user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36' \
+		-H 'x-requested-with: XMLHttpRequest' \
+		-o "$BOOK_JSON" --silent --no-verbose 
+
+	book_header
+	book_description "$BOOK_TITLE" "$BOOK_AUTHOR" "none" "$BOOK_DESCRIPTION"
+	book_text "<section><p>"
+
+	for (( i=0; i <= $BOOK_TOTAL_PAGES; ++i ))
+	do
+	echo "Process page: $i"
+	book_text "$(get_json_val $BOOK_JSON 'content' $i | rev)"
+	done
+
+	book_text "</p></section>"
+	book_footer
+}

@@ -4,7 +4,7 @@ DIR=$(dirname $(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null||echo $0))
 
 VERSION="0.3"
 PROGRAM_NAME="Books Downloader"
-SUPPORTER_PROVIDERS=("booknet.ua" "readukrainianbooks.com")
+SUPPORTER_PROVIDERS=("booknet.ua" "readukrainianbooks.com" "uabooks.net")
 PROVIDER_NAME=""
 PACKER="FB2"
 
@@ -26,10 +26,16 @@ fi
 FILES_DIR="files"
 # Folder to store temprorary downloaded images
 IMAGES_DIR="images"
+IMAGES_DOMAIN=""
 BOOKS_DIR="/home/public/Books/2025"
+# Global file to save the book.
+FILENAME="$BOOKS_DIR/test.fb2"
 
-# Loading helpers.
+IMAGE_COVER_URL=""
+
+# Loading helpers and packer.
 . "$DIR/scripts/helpers.sh"
+. "$DIR/scripts/packer.sh"
 
 # Check if link to page is present.
 if [ -z "$URL" ]; then
@@ -78,11 +84,11 @@ if [[ ! " ${SUPPORTER_PROVIDERS[@]} " =~ " $PROVIDER_NAME " ]]; then
 fi
 
 # Loading scripts relates to website.
-. "$DIR/scripts/$PROVIDER_NAME.sh"
+. "$DIR/providers/$PROVIDER_NAME"
 
 # Clear everything
-rm -rf $IMAGES_DIR/*.**
-rm -rf $FILES_DIR/*.**
+# rm -rf $IMAGES_DIR/*.**
+# rm -rf $FILES_DIR/*.**
 
 # Create folder
 [ -d $BOOKS_DIR ] || mkdir -p $BOOKS_DIR
