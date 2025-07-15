@@ -30,8 +30,10 @@ IMAGES_DOMAIN=""
 BOOKS_DIR="/home/public/Books/2025"
 # Global file to save the book.
 FILENAME="$BOOKS_DIR/test.fb2"
-
+# Main book cover image.
 IMAGE_COVER_URL=""
+# Store images urls in array to process at the end of the file.
+IMAGES_URLS=()
 
 # Loading helpers and packer.
 . "$DIR/scripts/helpers.sh"
@@ -87,8 +89,8 @@ fi
 . "$DIR/providers/$PROVIDER_NAME"
 
 # Clear everything
-# rm -rf $IMAGES_DIR/*.**
-# rm -rf $FILES_DIR/*.**
+rm -rf $IMAGES_DIR/*.**
+rm -rf $FILES_DIR/*.**
 
 # Create folder
 [ -d $BOOKS_DIR ] || mkdir -p $BOOKS_DIR

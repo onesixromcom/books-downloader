@@ -5,10 +5,6 @@ FILE_IDENTITY=""
 COOKIE_IDENTITY=""
 # Flag to force download of incomplete book.
 INCOMPLETE_DOWNLOAD=""
-# Store images urls in array to process at the end of the file.
-IMAGES_URLS=()
-# Main book cover image.
-IMAGE_COVER_URL=""
 
 # Files values
 COOKIES_FILE="$FILES_DIR/cookies.txt"
@@ -20,8 +16,6 @@ FILE_IDENTITY="./identity.txt"
 FILE_CSRF="./csrf.txt"
 
 CSRF=""
-# Global variable with the book's text.
-PAGE_TEXT=""
 
 for i in "${args[@]}"; do
 case "$i" in
@@ -130,94 +124,6 @@ get_ajax_page()
 	#get_json_val $AJAX_RESPONSE_FILE data > "$FILES_DIR/$2-$3.data"
 }
 
-write_fb2_header()
-{
-	if [ -f "$FILENAME" ]; then rm "$FILENAME"; fi
-	touch "$FILENAME";
-	echo '<?xml version="1.0" encoding="utf-8"?><FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">' > "$FILENAME";
-}
-
-write_fb2_footer()
-{
-	echo '</body>' >> "$FILENAME";
-	if [ ! -z "$IMAGE_COVER_URL" ]; then
-		echo '<binary id="cover.jpg" content-type="image/jpeg">' >> "$FILENAME";
-		wget -O $IMAGES_DIR/cover.jpg --no-verbose --quiet $IMAGE_COVER_URL
-		base64 $IMAGES_DIR/cover.jpg >> "$FILENAME";
-		echo '</binary>' >> "$FILENAME";
-	fi
-	
-	IMAGES_URLS_TOTAL="${#IMAGES_URLS[@]}"
-	echo "Images to process: $IMAGES_URLS_TOTAL"
-	# Add images binaries.
-	for image in "${IMAGES_URLS[@]}";
-	do
-		FNAME=$(basename $image)
-		FNAME_JPEG="${FNAME%.*}.jpg"
-		echo "<binary id=\"$FNAME_JPEG\" content-type=\"image/jpeg\">" >> "$FILENAME";
-		wget -O $IMAGES_DIR/$FNAME --no-verbose --quiet $image
-		# Converting images to JPG format.
-		convert -quality 50 $IMAGES_DIR/$FNAME $IMAGES_DIR/$FNAME_JPEG
-		base64 $IMAGES_DIR/$FNAME_JPEG >> "$FILENAME";
-		echo '</binary>' >> "$FILENAME";
-	done
-
-	echo '</FictionBook>' >> "$FILENAME";
-}
-
-write_fb2_description()
-{
-	echo '<description><title-info>' >> "$FILENAME";
-	echo "<book-title>$1</book-title>"  >> "$FILENAME";
-	echo "<genre>$3</genre>" >> "$FILENAME";
-	echo "<author><first-name>$2</first-name><middle-name></middle-name><last-name></last-name></author>" >> "$FILENAME";
-	echo '<from>Downloaded from booknet.ua. Converted by 16rom.com</from>' >> "$FILENAME";
-	echo "<annotation><p>$4</p></annotation>"  >> "$FILENAME";
-	if [ ! -z "$IMAGE_COVER_URL" ]; then
-		echo '<coverpage><image l:href="#cover.jpg"></image></coverpage>' >> "$FILENAME";
-	fi
-	# echo '<lang>ua</lang></title-info></description><body>' >> "$FILENAME";
-	echo '<lang>ua</lang></title-info></description><body xmlns:fb="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:xlink="http://www.w3.org/1999/xlink">' >> "$FILENAME";
-}
-
-write_fb2_text()
-{
-	PAGE_TEXT="$1"
-	process_images
-	echo "$PAGE_TEXT" >> "$FILENAME"
-}
-
-process_images()
-{
-	PAGE_TEXT=$(echo "$PAGE_TEXT" | sed -e 's|&amp;|\&|g')
-
-	IMAGES_TMP=($(echo "$PAGE_TEXT" |
-		hxnormalize -x -e -s |
-		hxselect -i img |
-		hxwls
-	))
-	# TODO: check filesize before processing
-	for image in "${IMAGES_TMP[@]}";
-	do
-		if [ ! -z "$image" ]; then
-			if [ -z "$(echo $image | grep facebook)" ]; then
-				IMAGES_URLS+=("$image")
-				FNAME=$(basename $image)
-				# Change extesion to jpg.
-				FNAME="${FNAME%.*}.jpg"
-				PAGE_TEXT=`echo "$PAGE_TEXT" | sed -e "s|$image|#$FNAME|g"`
-				#echo "Image was found in the text $FNAME"
-			else
-				# Replace img urls from the text.
-				PAGE_TEXT=`echo "$PAGE_TEXT" | sed -e "s|$image|#pixel.jpg|g"`
-			fi
-		fi
-	done
-
-	PAGE_TEXT=`echo "$PAGE_TEXT" | sed -e "s|src=|l:href=|g"`
-	PAGE_TEXT=`echo "$PAGE_TEXT" | sed -e "s|img|image|g"`
-}
-
 token_refresh()
 {
 	#echo "-> Refresh request tokens."
@@ -303,8 +209,8 @@ if [ -z "$CHAPTERS" ]; then
 	exit;
 fi
 
-write_fb2_header
-write_fb2_description "$BOOK_TITLE" "$BOOK_AUTHOR" "$BOOK_GENRE" "$BOOK_DESCRIPTION"
+book_header
+book_description "$BOOK_TITLE" "$BOOK_AUTHOR" "$BOOK_GENRE" "$BOOK_DESCRIPTION"
 
 CHAPTER_NUM=0
 echo "Processing ${#CHAPTERS[@]} chapters."
@@ -313,12 +219,12 @@ do
 	echo "Process chapter: $CHAPTER_NUM - ${CHAPTERS_NAMES[$CHAPTER_NUM]}, page: 1"
 	
 	# Write section start.
-	write_fb2_text "<section><title><p>${CHAPTERS_NAMES[$CHAPTER_NUM]}</p></title>"
+	book_text "<section><title><p>${CHAPTERS_NAMES[$CHAPTER_NUM]}</p></title>"
 	get_ajax_page $URL $chapter 1
 	TOTALPAGES=$(get_json_val $AJAX_RESPONSE_FILE totalPages)
 	
 	if [ -z "$TOTALPAGES" ]; then
-		echo 'Lets try to refresh csrf tokens. 2mins waiting...';
+		echo 'Lets try to refresh csrf tokens. 2 mins waiting...';
 		sleep 120
 		token_refresh
 		get_ajax_page $URL $chapter 1
@@ -326,15 +232,14 @@ do
 		if [ -z "$TOTALPAGES" ]; then
 			echo "Total pages not found. Fatal error. Book could be not free. Exit.";
 			# Save finished data and exit.
-			write_fb2_text "</section>"
-			write_fb2_footer
-			exit;
+			book_text "</section>"
+			book_footer
+			exit
 		fi
 	fi
-	
 
 	# Write data text.
-	write_fb2_text "$(get_json_val $AJAX_RESPONSE_FILE data)"
+	book_text "$(get_json_val $AJAX_RESPONSE_FILE data)"
 
 	if [ "$TOTALPAGES" -gt 1 ]; then
 		# echo "chapter has pages: $TOTALPAGES"
@@ -342,17 +247,17 @@ do
 		do
 		echo "Process chapter: $CHAPTER_NUM page: $i"
 		get_ajax_page $URL $chapter $i
-		write_fb2_text "$(get_json_val $AJAX_RESPONSE_FILE data)"
+		book_text "$(get_json_val $AJAX_RESPONSE_FILE data)"
 		#sleep 2
 		done
 	fi
 
 	# Write section end.
 	CHAPTER_NUM=$((CHAPTER_NUM+1))
-	write_fb2_text "</section>"
+	book_text "</section>"
 	#sleep 2
 done
 
-write_fb2_footer
+book_footer
 
 }

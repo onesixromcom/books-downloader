@@ -36,10 +36,15 @@ book_text()
 {
 if [ $PACKER == "FB2" ]; then
 	# Remove all divs, h1, em
-	PAGE_TEXT=$( echo $1 | sed 's/<div[^>]*>//g; s/<\/div>//g' | sed 's/<h1[^>]*>//g; s/<\/h1>//g'| \
+	PAGE_TEXT=$( echo $1 | \
+	sed 's/<div[^>]*>//g; s/<\/div>//g' | \
+	sed 's/<h1[^>]*>//g; s/<\/h1>//g'| \
 	sed 's/<br[^>]*>//g' | \
-	sed 's/<em[^>]*>//g; s/<\/em>//g'| \
-	sed 's/<a[^>]*>//g; s/<\/a>//g' )
+	sed 's/<em[^>]*>//g; s/<\/em>//g' | \
+	sed 's/<a[^>]*>//g; s/<\/a>//g' | \
+	sed '/<script\b/,/<\/script>/d'
+	)
+
 	book_process_images
 
 	echo "$PAGE_TEXT" >> "$FILENAME"
@@ -63,14 +68,27 @@ if [ $PACKER == "FB2" ]; then
 	# Add images binaries.
 	for image in "${IMAGES_URLS[@]}";
 	do
+		echo "Downloading image $image"
 		FNAME=$(basename $image)
 		FNAME_JPEG="${FNAME%.*}.jpg"
-		echo "<binary id=\"$FNAME_JPEG\" content-type=\"image/jpeg\">" >> "$FILENAME";
 		wget -O $IMAGES_DIR/$FNAME --no-verbose --quiet $image
-		# Converting images to JPG format.
-		convert -quality 50 $IMAGES_DIR/$FNAME $IMAGES_DIR/$FNAME_JPEG
-		base64 $IMAGES_DIR/$FNAME_JPEG >> "$FILENAME";
-		echo '</binary>' >> "$FILENAME";
+
+		if [ -s $IMAGES_DIR/$FNAME ]; then
+			# Converting images to JPG format.
+			convert -quality 50 $IMAGES_DIR/$FNAME $IMAGES_DIR/$FNAME_JPEG
+
+			# Check if image is correct.
+			if [[ $(file -b $IMAGES_DIR/$FNAME_JPEG) =~ JPEG ]]; then
+				echo "<binary id=\"$FNAME_JPEG\" content-type=\"image/jpeg\">" >> "$FILENAME";
+				base64 $IMAGES_DIR/$FNAME_JPEG >> "$FILENAME";
+				echo '</binary>' >> "$FILENAME";
+			fi
+		else
+			# Add a dummy image.
+			echo "<binary id=\"$FNAME_JPEG\" content-type=\"image/jpeg\">" >> "$FILENAME";
+			base64 dummy.jpg >> "$FILENAME";
+			echo '</binary>' >> "$FILENAME";
+		fi
 	done
 
 	echo '</FictionBook>' >> "$FILENAME";
@@ -91,7 +109,8 @@ book_process_images()
 	do
 		if [ ! -z "$image" ]; then
 			if [ -z "$(echo $image | grep facebook)" ]; then
-				IMAGES_URLS+=("$IMAGES_DOMAIN/$image")
+				echo "++ Image found: $IMAGES_DOMAIN$image"
+				IMAGES_URLS+=("$IMAGES_DOMAIN$image")
 				FNAME=$(basename $image)
 				# Change extesion to jpg.
 				FNAME="${FNAME%.*}.jpg"
@@ -106,4 +125,5 @@ book_process_images()
 
 	PAGE_TEXT=$( echo "$PAGE_TEXT" | sed -e "s|src=|l:href=|g" )
 	PAGE_TEXT=$( echo "$PAGE_TEXT" | sed 's/<img\([^>]*[^/[:space:]]\)[[:space:]]*>/<image\1 \/>/g' )
+	PAGE_TEXT=$( echo "$PAGE_TEXT" | sed -e "s|img|image|g" )
 }

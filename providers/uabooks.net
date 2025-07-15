@@ -6,7 +6,7 @@
 # Global variables
 BOOK_ID=""
 BOOK_TOTAL_PAGES=""
-IMAGES_DOMAIN="https://uabooks.net"
+IMAGES_DOMAIN="https://uabooks.net/"
 
 process_book()
 {
