@@ -42,7 +42,7 @@ if [ $PACKER == "FB2" ]; then
 	sed 's/<br[^>]*>//g' | \
 	sed 's/<em[^>]*>//g; s/<\/em>//g' | \
 	sed 's/<a[^>]*>//g; s/<\/a>//g' | \
-	sed '/<script\b/,/<\/script>/d'
+	sed 's/<script[^>]*>.*<\/script>//g'
 	)
 
 	book_process_images

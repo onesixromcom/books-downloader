@@ -119,7 +119,7 @@ get_ajax_page()
 	--silent \
 	--data-raw "chapterId=$2&page=$3&_csrf=$CSRF_TOKEN"
 
-	# debug data
+	# Uncomment to save each request data.
 	#cp "$AJAX_RESPONSE_FILE" "$FILES_DIR/$2-$3.json"
 	#get_json_val $AJAX_RESPONSE_FILE data > "$FILES_DIR/$2-$3.data"
 }
@@ -213,10 +213,17 @@ book_header
 book_description "$BOOK_TITLE" "$BOOK_AUTHOR" "$BOOK_GENRE" "$BOOK_DESCRIPTION"
 
 CHAPTER_NUM=0
+# Debug stuff to skip downloading chapters from beginning.
+if [ $CHAPTER_NUM -gt 0 ]; then
+	for (( i=0;i<$(($CHAPTER_NUM));i++)); do
+		unset CHAPTERS[$i]
+	done
+fi
+
 echo "Processing ${#CHAPTERS[@]} chapters."
 for chapter in "${CHAPTERS[@]}";
 do
-	echo "Process chapter: $CHAPTER_NUM - ${CHAPTERS_NAMES[$CHAPTER_NUM]}, page: 1"
+	echo "Process chapter: $CHAPTER_NUM - ${CHAPTERS_NAMES[$CHAPTER_NUM]}, page: 1 / $TOTALPAGES"
 	
 	# Write section start.
 	book_text "<section><title><p>${CHAPTERS_NAMES[$CHAPTER_NUM]}</p></title>"
@@ -245,7 +252,7 @@ do
 		# echo "chapter has pages: $TOTALPAGES"
 		for (( i=2; i <= $TOTALPAGES; ++i ))
 		do
-		echo "Process chapter: $CHAPTER_NUM page: $i"
+		echo "Process chapter: $CHAPTER_NUM - ${CHAPTERS_NAMES[$CHAPTER_NUM]}, page: $i / $TOTALPAGES"
 		get_ajax_page $URL $chapter $i
 		book_text "$(get_json_val $AJAX_RESPONSE_FILE data)"
 		#sleep 2
