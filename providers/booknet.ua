@@ -223,13 +223,13 @@ fi
 echo "Processing ${#CHAPTERS[@]} chapters."
 for chapter in "${CHAPTERS[@]}";
 do
-	echo "Process chapter: $CHAPTER_NUM - ${CHAPTERS_NAMES[$CHAPTER_NUM]}, page: 1 / $TOTALPAGES"
-	
 	# Write section start.
 	book_text "<section><title><p>${CHAPTERS_NAMES[$CHAPTER_NUM]}</p></title>"
 	get_ajax_page $URL $chapter 1
 	TOTALPAGES=$(get_json_val $AJAX_RESPONSE_FILE totalPages)
 	
+	echo "Process chapter: $CHAPTER_NUM - ${CHAPTERS_NAMES[$CHAPTER_NUM]}, page: 1 / $TOTALPAGES"
+
 	if [ -z "$TOTALPAGES" ]; then
 		echo 'Lets try to refresh csrf tokens. 2 mins waiting...';
 		sleep 120
