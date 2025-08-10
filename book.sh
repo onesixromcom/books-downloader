@@ -4,7 +4,7 @@ DIR=$(dirname $(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null||echo $0))
 
 VERSION="0.3"
 PROGRAM_NAME="Books Downloader"
-SUPPORTER_PROVIDERS=("booknet.ua" "readukrainianbooks.com" "uabooks.net")
+SUPPORTER_PROVIDERS=("booknet.ua" "readukrainianbooks.com" "uabooks.net" "bookuruk.com")
 PROVIDER_NAME=""
 PACKER="FB2"
 

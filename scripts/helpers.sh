@@ -41,3 +41,16 @@ get_json_val()
 
 	echo $VAL
 }
+
+# Download html.
+# $1 - URL
+# $2 - File to save
+get_html_page()
+{
+	curl $1 \
+	-H 'accept: application/json, text/javascript, */*; q=0.01' \
+	-H 'accept-language: en-US,en;q=0.9' \
+	-H 'cache-control: no-cache' \
+	-o "$2" \
+	--silent
+}
