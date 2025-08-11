@@ -2,5 +2,6 @@ identity.txt
 csrf.txt
 files/*
 images/*
+tmp
 !files/.gitfolder
 !images/.gitfolder

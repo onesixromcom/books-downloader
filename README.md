@@ -8,6 +8,7 @@ Supported websites:
 - booknet.ua
 - uabooks.net
 - bookuruk.com
+- zenko.online
 
 ## How to use script for readukrainianbooks.com
 ````
@@ -30,6 +31,14 @@ In the latest update of the script images support were added. I've noticed that 
 
 ````
 ./book.sh https://bookuruk.com/book/vidma-filosofskih-nauk
+````
+
+## How to use script for zenko.online
+
+The book will be donwloaded in CBZ file format.
+
+````
+./book.sh https://zenko.online/titles/3039
 ````
 
 ### P.S. Support authors - buy their books!
