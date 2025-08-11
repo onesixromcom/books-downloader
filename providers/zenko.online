@@ -12,10 +12,6 @@ process_book()
 	BOOK_ID=$(echo "$URL" | sed -n 's|.*/titles/\([0-9]*\).*|\1|p')
 
 	# Get book information.
-	# echo "$BOOK_ID"
-
-	FILENAME="$BOOKS_DIR/$BOOK_ID.cbz"
-
 	BOOK_DIR="$FILES_DIR/$BOOK_ID"
 	mkdir -p $BOOK_DIR
 
@@ -24,6 +20,8 @@ process_book()
 	BOOK_TITLE=$(get_json_val $JSON_INFO "name")
 
 	echo "$BOOK_TITLE"
+	BOOK_TITLE=$(echo $BOOK_TITLE | sed 's/ /-/g')
+	FILENAME="$BOOKS_DIR/$BOOK_TITLE.cbz"
 
 	get_html_page "https://zenko-api.onrender.com/titles/$BOOK_ID/chapters" $JSON_CHAPTERS
 
@@ -42,7 +40,7 @@ process_book()
 
 		for image_id in "${IMAGES[@]}"; do
 			IMAGE_NAME="file${ZEROS:${#IMAGE_COUNTER}}${IMAGE_COUNTER}"
-			echo "Download image $image_id"
+			echo "Download image $IMAGE_NAME: $image_id"
 			get_html_page "https://zenko.b-cdn.net/$image_id" "$BOOK_DIR/$IMAGE_NAME.webp"
 			IMAGE_COUNTER=$((IMAGE_COUNTER+1))
 		done
@@ -52,5 +50,5 @@ process_book()
 	for i in $BOOK_DIR/*.webp; do name=`echo "$i" | cut -d'.' -f1`; convert "$i" "${name}.jpg"; done
 
 	# Create final book.
-	zip $FILENAME $BOOK_DIR/*.jpg
+	zip -q $FILENAME $BOOK_DIR/*.jpg
 }
