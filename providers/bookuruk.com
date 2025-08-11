@@ -13,12 +13,17 @@ process_book()
 
 	# Get book chapters.
 	CHAPTERS_LINK=""
+	AUTHOR_SLUG=""
 	LINKS=($(cat $PAGE_HTML | hxnormalize -x -e -d -s | hxselect -i main.single nav | hxwls))
 	for link in "${LINKS[@]}";
 	do
 		if [[ $link == /book/chapters* ]]; then
 			echo "Chapters page found $link"
 			CHAPTERS_LINK=$link
+		fi
+		if [[ $link == /author/* ]]; then
+			echo "Author slug found $link"
+			AUTHOR_SLUG=$(echo $link | sed 's/\/author\///')
 		fi
 	done
 
@@ -28,6 +33,9 @@ process_book()
 	BOOK_AUTHOR=$(cat $PAGE_HTML | hxnormalize -x -e -s | hxselect -i -c .single-header__title .bookcard_author a)
 	FILENAME=$(echo "$URL" | sed "s/https:\/\/bookuruk.com\/book\///").fb2
 
+	if [ ! -z "$AUTHOR_SLUG" ]; then
+		FILENAME="$AUTHOR_SLUG--$FILENAME"
+	fi
 	FILENAME="$BOOKS_DIR/$FILENAME"
 	echo "Book will be saved to $FILENAME" 
 
