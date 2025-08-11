@@ -2,9 +2,10 @@
 
 DIR=$(dirname $(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null||echo $0))
 
-VERSION="0.3"
+VERSION="0.5"
 PROGRAM_NAME="Books Downloader"
-SUPPORTER_PROVIDERS=("booknet.ua" "readukrainianbooks.com" "uabooks.net" "bookuruk.com")
+# Get supported providers by the filename.
+readarray -t SUPPORTER_PROVIDERS < <(ls ./providers/ -1)
 PROVIDER_NAME=""
 PACKER="FB2"
 
@@ -23,6 +24,9 @@ then
 	unset args[0]
 fi
 
+# Book filename.
+FILENAME=""
+# Folder to store temprorary files.
 FILES_DIR="files"
 # Folder to store temprorary downloaded images
 IMAGES_DIR="images"
@@ -89,12 +93,13 @@ fi
 . "$DIR/providers/$PROVIDER_NAME"
 
 # Clear everything
-rm -rf $IMAGES_DIR/*.**
-rm -rf $FILES_DIR/*.**
+rm -rf $IMAGES_DIR/*
+rm -rf $FILES_DIR/*
 
 # Create folder
 [ -d $BOOKS_DIR ] || mkdir -p $BOOKS_DIR
 
 process_book
 
+echo "Book possibly was saved to: $FILENAME"
 echo "$PROGRAM_NAME finished."

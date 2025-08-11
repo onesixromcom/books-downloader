@@ -1,0 +1,56 @@
+# Download comics from zenko.online
+
+JSON_INFO="$FILES_DIR/zenko_bookinfo.json"
+JSON_CHAPTERS="$FILES_DIR/zenko_chapters.html"
+JSON_CHAPTER="$FILES_DIR/zenko_chapter.html"
+
+#================== START ==================
+
+process_book()
+{
+	# Get book id from the url.
+	BOOK_ID=$(echo "$URL" | sed -n 's|.*/titles/\([0-9]*\).*|\1|p')
+
+	# Get book information.
+	# echo "$BOOK_ID"
+
+	FILENAME="$BOOKS_DIR/$BOOK_ID.cbz"
+
+	BOOK_DIR="$FILES_DIR/$BOOK_ID"
+	mkdir -p $BOOK_DIR
+
+	get_html_page "https://zenko-api.onrender.com/titles/$BOOK_ID" $JSON_INFO
+
+	BOOK_TITLE=$(get_json_val $JSON_INFO "name")
+
+	echo "$BOOK_TITLE"
+
+	get_html_page "https://zenko-api.onrender.com/titles/$BOOK_ID/chapters" $JSON_CHAPTERS
+
+	# Get all chapters ids and sort them in ASC.
+	readarray -t CHAPTERS < <(php -f ./scripts/zenko-chapters.php $JSON_CHAPTERS)
+
+	# Download images from the chapters.
+	IMAGE_COUNTER=1
+	ZEROS=0000
+	echo "Number of Chapters: ${#CHAPTERS[@]}"
+	for chapter_id in "${CHAPTERS[@]}"; do
+		get_html_page "https://zenko-api.onrender.com/chapters/$chapter_id" $JSON_CHAPTER
+
+		readarray -t IMAGES < <(php -f ./scripts/zenko-pages.php $JSON_CHAPTER)
+		echo "Number of images: ${#IMAGES[@]}"
+
+		for image_id in "${IMAGES[@]}"; do
+			IMAGE_NAME="file${ZEROS:${#IMAGE_COUNTER}}${IMAGE_COUNTER}"
+			echo "Download image $image_id"
+			get_html_page "https://zenko.b-cdn.net/$image_id" "$BOOK_DIR/$IMAGE_NAME.webp"
+			IMAGE_COUNTER=$((IMAGE_COUNTER+1))
+		done
+	done
+
+	echo "+++ Convert images to JPG +++"
+	for i in $BOOK_DIR/*.webp; do name=`echo "$i" | cut -d'.' -f1`; convert "$i" "${name}.jpg"; done
+
+	# Create final book.
+	zip $FILENAME $BOOK_DIR/*.jpg
+}
