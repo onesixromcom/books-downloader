@@ -17,7 +17,7 @@ Supported websites:
 
 ## How to use script for booknet.ua
 
-For booknet.ua to download books you've bought identity and csrf cookies should be paste in indentity.txt and csrf.txt files.
+For booknet.ua to download books you've bought identity and csrf cookies should be provided in indentity.txt and csrf.txt files.
 Check "_identity" and "_csrf" cookies when you're logged in.
 Identity file will bo loaded automatically.
 
@@ -41,4 +41,12 @@ The book will be donwloaded in CBZ file format.
 ./book.sh https://zenko.online/titles/3039
 ````
 
-### P.S. Support authors - buy their books!
+## Download books from the list
+
+Each line in the text file should be the link to the book.
+
+````
+./book.sh --list=/path/to/list
+````
+
+# P.S. Support authors - buy their books!

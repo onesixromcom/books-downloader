@@ -54,3 +54,17 @@ get_html_page()
 	-o "$2" \
 	--silent
 }
+
+show_help()
+{
+	local error_text="$1"
+	echo "$PROGRAM_NAME v.$VERSION"
+	if [ ! -z "$error_text" ]; then
+		echo "$error_text"
+	fi
+	echo -e "Downloader works with websites: $CGreen ${SUPPORTER_PROVIDERS[*]} $CN"
+	printf 'You can use additional parameters:
+\t--list=PATH\tUse the txt file with the list of urls to download.
+'
+    exit 0
+}

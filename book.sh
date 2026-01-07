@@ -14,14 +14,18 @@ CGreen='\033[0;32m' # Green
 CRed='\033[0;31m' # Red
 CN='\033[0m' # No Color
 
-# Store arguments in a special array 
+# Array to store urls
+URLS=()
+
+# Store arguments in a special array
 args=("$@")
 URL=""
 regex='(https?|ftp|file)://[-[:alnum:]\+&@#/%?=~_|!:,.;]*[-[:alnum:]\+&@#/%=~_|]'
 if [[ ${args[0]} =~ $regex ]]
 then 
-	URL=${args[0]}
-	unset args[0]
+    URL=${args[0]}
+    URLS+=("${args[0]}")
+    unset args[0]
 fi
 
 # Book filename.
@@ -38,68 +42,81 @@ FILENAME="$BOOKS_DIR/test.fb2"
 IMAGE_COVER_URL=""
 # Store images urls in array to process at the end of the file.
 IMAGES_URLS=()
+LIST_FILE=""
 
 # Loading helpers and packer.
 . "$DIR/scripts/helpers.sh"
 . "$DIR/scripts/packer.sh"
 
-# Check if link to page is present.
-if [ -z "$URL" ]; then
-	echo "No url supplied. Please use correct name. (ex: https://ssss.sss/sss.html)"
-	echo -e "Downloader works with websites: $CGreen ${SUPPORTER_PROVIDERS[*]} $CN"
-	echo 'You can use additional parameters:'
-	exit
-fi
-
 for i in "${args[@]}"; do
 case "$i" in
-	# --identity*)
-	# FILE_IDENTITY="./identity.txt"
-	# ;;
-	# --incomplete*)
-	# INCOMPLETE_DOWNLOAD="1"
-	# ;;  
-	--debug)
-	DEBUG="1"
-	;;
-	# --help)
-	# echo "Usage: ./book.sh https://booknet.ua/reader/mainpage-1234566"
-	# echo "Params:"
-	# echo "--identity - Using identity.txt file where you should place value from _identity cookie when you're logged in."
-	# echo "--incomplete - Download book even if it's not full (non-free)"
-	# exit
-	# ;;
-	--clean)
-	#echo "Clear all variables and tmp segments."
-	#rm -rf $VARS_DIR/*
-	#rm -rf $OUTPUT_SEGMENTS/*
-	;;  
-	*)
+    --debug)
+    DEBUG="1"
+    ;;
+    --list=*)
+    LIST_FILE="${i#*=}"
+    ;;
+    --help)
+    show_help
+    ;;
+    --clean)
+    ;;
+    *)
 esac
 shift
 done
 
-#================== START ==================
-echo "$PROGRAM_NAME v.$VERSION is starting..."
-PROVIDER_NAME=$(echo $URL | awk -F[/:] '{print $4}')
-if [[ ! " ${SUPPORTER_PROVIDERS[@]} " =~ " $PROVIDER_NAME " ]]; then
-	echo -e "Wrong website name $CGreen ($PROVIDER_NAME) $CN was used in input.";
-	echo "Please use one of:";
-	for p in ${SUPPORTER_PROVIDERS[@]}; do echo $p; done;
-	exit 1;
+if [ ! -z "$LIST_FILE" ]; then
+    if [ ! -f "$LIST_FILE" ]; then
+        show_help "Error: File '$LIST_FILE' not found"
+    fi
+    
+    # Clear the array before loading
+    URLS=()
+    
+    # Read file line by line and add to array
+    while IFS= read -r line || [ -n "$line" ]; do
+        # Skip empty lines and lines starting with #
+        if [ -n "$line" ] && [[ ! "$line" =~ ^[[:space:]]*# ]]; then
+            if [[ $line =~ $regex ]]; then
+                URLS+=("$line")
+            fi
+        fi
+    done < "$LIST_FILE"
 fi
 
-# Loading scripts relates to website.
-. "$DIR/providers/$PROVIDER_NAME"
+# Show help if no parameters were provided
+if [ -z "$URLS" ]; then
+    show_help "ERROR. No urls were provided."
+fi
 
-# Clear everything
-rm -rf $IMAGES_DIR/*
-rm -rf $FILES_DIR/*
+#================== START ==================
+echo "$PROGRAM_NAME v.$VERSION is starting..."
 
-# Create folder
-[ -d $BOOKS_DIR ] || mkdir -p $BOOKS_DIR
+# Process all urls
+for i in "${!URLS[@]}"; do
+    URL="${URLS[$i]}"
+    echo "$URL"
 
-process_book
+    PROVIDER_NAME=$(echo $URL | awk -F[/:] '{print $4}')
+    if [[ ! " ${SUPPORTER_PROVIDERS[@]} " =~ " $PROVIDER_NAME " ]]; then
+        echo -e "$CRed Download error $CN. Wrong website name $CGreen ($PROVIDER_NAME) $CN was used in the input.";
+        continue
+    fi
 
-echo "Book possibly was saved to: $FILENAME"
+    # Loading scripts relates to website.
+    . "$DIR/providers/$PROVIDER_NAME"
+
+    # Clear everything
+    rm -rf $IMAGES_DIR/*
+    rm -rf $FILES_DIR/*
+
+    # Create folder
+    [ -d $BOOKS_DIR ] || mkdir -p $BOOKS_DIR
+
+    process_book
+
+    echo "Book possibly was saved to: $FILENAME"
+done
+
 echo "$PROGRAM_NAME finished."
