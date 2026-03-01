@@ -28,14 +28,12 @@ then
     unset args[0]
 fi
 
-# Book filename.
-FILENAME=""
 # Folder to store temprorary files.
 FILES_DIR="files"
 # Folder to store temprorary downloaded images
 IMAGES_DIR="images"
 IMAGES_DOMAIN=""
-BOOKS_DIR="/home/public/Books/2025"
+BOOKS_DIR="/home/public/Books/2026"
 # Global file to save the book.
 FILENAME="$BOOKS_DIR/test.fb2"
 # Main book cover image.

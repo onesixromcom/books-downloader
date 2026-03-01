@@ -39,7 +39,7 @@ get_json_val()
 		php -r "echo json_decode(file_get_contents('php://stdin'), true)['$2'] ?? '';")
 	fi
 
-	echo $VAL
+	echo "$VAL"
 }
 
 # Download html.
