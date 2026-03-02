@@ -164,17 +164,19 @@ process_book()
 URL=$(echo "$URL" | sed "s/\/book\//\/reader\//")
 FILENAME=$(echo "$URL" | sed "s/https:\/\/booknet.ua\/reader\///" | sed 's/.html.*//' | sed -e 's/^[0-9]\+-*//g').fb2
 
-# if [ -f "$PAGE_HTML" ]; then rm "$PAGE_HTML";  fi
-
-rm -rf $IMAGES_DIR/*.**
-rm -rf $FILES_DIR/*.**
-
 token_refresh
 
 CHAPTERS=($(get_chapters_list $PAGE_HTML))
+
+if [ -z "$CHAPTERS" ]; then
+	echo -e "$CRed No chapters were found! $CN";
+	return;
+fi
+
 # Check if all book is available.
 CHAPTERS_TOTAL="${#CHAPTERS[@]}"
 CHAPTERS_TOTAL=$((CHAPTERS_TOTAL-1))
+# TODO detect 500/503 errors
 get_ajax_page $URL ${CHAPTERS[$CHAPTERS_TOTAL]} 1
 TOTALPAGES=$(get_json_val $AJAX_RESPONSE_FILE totalPages)
 
@@ -202,11 +204,6 @@ echo "Genre: $BOOK_GENRE"
 
 # Get chapters names.
 readarray -t CHAPTERS_NAMES < <(get_chapters_names $PAGE_HTML)
-
-if [ -z "$CHAPTERS" ]; then
-	echo "No chapters were found! exit";
-	exit;
-fi
 
 book_header
 book_description "$BOOK_TITLE" "$BOOK_AUTHOR" "$BOOK_GENRE" "$BOOK_DESCRIPTION"
@@ -240,7 +237,7 @@ do
 			# Save finished data and exit.
 			book_text "</section>"
 			book_footer
-			exit
+			return
 		fi
 	fi
 

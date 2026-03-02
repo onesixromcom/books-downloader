@@ -10,8 +10,9 @@ PROVIDER_NAME=""
 PACKER="FB2"
 
 # Colors 
-CGreen='\033[0;32m' # Green
-CRed='\033[0;31m' # Red
+CGreen='\033[0;32m'
+CRed='\033[0;31m'
+CBlue='\033[0;34m'
 CN='\033[0m' # No Color
 
 # Array to store urls
@@ -114,7 +115,9 @@ for i in "${!URLS[@]}"; do
 
     process_book
 
-    echo "Book possibly was saved to: $FILENAME"
+    echo -e "Book possibly was saved to:$CBlue $FILENAME $CN"
+    echo -e "$CGreen --- Wait 60sec before next download --- $CN"
+    sleep 60
 done
 
 echo "$PROGRAM_NAME finished."
