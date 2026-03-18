@@ -39,7 +39,7 @@ get_json_val()
 		php -r "echo json_decode(file_get_contents('php://stdin'), true)['$2'] ?? '';")
 	fi
 
-	echo "$VAL"
+	printf "%s" "$VAL"
 }
 
 # Download html.
@@ -64,7 +64,7 @@ show_help()
 	fi
 	echo -e "Downloader works with websites: $CGreen ${SUPPORTER_PROVIDERS[*]} $CN"
 	printf 'You can use additional parameters:
-\t--list=PATH\tUse the txt file with the list of urls to download.
+\t--list=FILEPATH\tUse the txt file with the list of urls to download.
 '
     exit 0
 }

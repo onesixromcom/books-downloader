@@ -2,7 +2,7 @@
 
 DIR=$(dirname $(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null||echo $0))
 
-VERSION="0.5"
+VERSION="0.7"
 PROGRAM_NAME="Books Downloader"
 # Get supported providers by the filename.
 readarray -t SUPPORTER_PROVIDERS < <(ls ./providers/ -1)

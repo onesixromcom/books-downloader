@@ -6,7 +6,7 @@ book_header()
 if [ $PACKER == "FB2" ]; then
 	if [ -f "$FILENAME" ]; then rm "$FILENAME"; fi
 	touch "$FILENAME";
-	echo '<?xml version="1.0" encoding="utf-8"?><FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">' > "$FILENAME";
+	printf "%s" '<?xml version="1.0" encoding="utf-8"?><FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">' > "$FILENAME";
 fi
 }
 
@@ -18,16 +18,16 @@ fi
 book_description()
 {
 if [ $PACKER == "FB2" ]; then
-	echo '<description><title-info>' >> "$FILENAME";
-	echo "<book-title>$1</book-title>"  >> "$FILENAME";
-	echo "<genre>$3</genre>" >> "$FILENAME";
-	echo "<author><first-name>$2</first-name><middle-name></middle-name><last-name></last-name></author>" >> "$FILENAME";
-	echo '<from>Downloaded from booknet.ua. Converted by 16rom.com</from>' >> "$FILENAME";
-	echo "<annotation><p>$4</p></annotation>"  >> "$FILENAME";
+	printf "%s" '<description><title-info>' >> "$FILENAME";
+	printf "%s" "<book-title>$1</book-title>"  >> "$FILENAME";
+	printf "%s" "<genre>$3</genre>" >> "$FILENAME";
+	printf "%s" "<author><first-name>$2</first-name><middle-name></middle-name><last-name></last-name></author>" >> "$FILENAME";
+	printf "%s" '<from>Downloaded from booknet.ua. Converted by 16rom.com</from>' >> "$FILENAME";
+	printf "%s" "<annotation><p>$4</p></annotation>"  >> "$FILENAME";
 	if [ ! -z "$IMAGE_COVER_URL" ]; then
-		echo '<coverpage><image l:href="#cover.jpg"></image></coverpage>' >> "$FILENAME";
+		printf "%s" '<coverpage><image l:href="#cover.jpg"></image></coverpage>' >> "$FILENAME";
 	fi
-	echo '<lang>ua</lang></title-info></description><body>' >> "$FILENAME";
+	printf "%s" "%s" '<lang>ua</lang></title-info></description><body>' >> "$FILENAME";
 fi
 }
 
@@ -36,7 +36,7 @@ book_text()
 {
 if [ $PACKER == "FB2" ]; then
 	# Remove all divs, h1, em
-	PAGE_TEXT=$( echo $1 | \
+	PAGE_TEXT=$( echo "$1" | \
 	sed 's/<div[^>]*>//g; s/<\/div>//g' | \
 	sed 's/<h1[^>]*>//g; s/<\/h1>//g'| \
 	sed 's/<br[^>]*>//g' | \
@@ -47,20 +47,20 @@ if [ $PACKER == "FB2" ]; then
 
 	book_process_images
 
-	echo "$PAGE_TEXT" >> "$FILENAME"
+	printf "%s" "$PAGE_TEXT" >> "$FILENAME"
 fi
 }
 
 book_footer()
 {
 if [ $PACKER == "FB2" ]; then
-	echo '</body>' >> "$FILENAME";
+	printf "%s" '</body>' >> "$FILENAME";
 
 	if [ ! -z "$IMAGE_COVER_URL" ]; then
-		echo '<binary id="cover.jpg" content-type="image/jpeg">' >> "$FILENAME";
+		printf "%s" '<binary id="cover.jpg" content-type="image/jpeg">' >> "$FILENAME";
 		wget -O $IMAGES_DIR/cover.jpg --no-verbose --quiet $IMAGE_COVER_URL
 		base64 $IMAGES_DIR/cover.jpg >> "$FILENAME";
-		echo '</binary>' >> "$FILENAME";
+		printf "%s" '</binary>' >> "$FILENAME";
 	fi
 
 	IMAGES_URLS_TOTAL="${#IMAGES_URLS[@]}"
@@ -79,15 +79,15 @@ if [ $PACKER == "FB2" ]; then
 
 			# Check if image is correct.
 			if [[ $(file -b $IMAGES_DIR/$FNAME_JPEG) =~ JPEG ]]; then
-				echo "<binary id=\"$FNAME_JPEG\" content-type=\"image/jpeg\">" >> "$FILENAME";
+				printf "%s" "<binary id=\"$FNAME_JPEG\" content-type=\"image/jpeg\">" >> "$FILENAME";
 				base64 $IMAGES_DIR/$FNAME_JPEG >> "$FILENAME";
-				echo '</binary>' >> "$FILENAME";
+				printf "%s" '</binary>' >> "$FILENAME";
 			fi
 		else
 			# Add a dummy image.
-			echo "<binary id=\"$FNAME_JPEG\" content-type=\"image/jpeg\">" >> "$FILENAME";
+			printf "%s" "<binary id=\"$FNAME_JPEG\" content-type=\"image/jpeg\">" >> "$FILENAME";
 			base64 dummy.jpg >> "$FILENAME";
-			echo '</binary>' >> "$FILENAME";
+			printf "%s" '</binary>' >> "$FILENAME";
 		fi
 	done
 
