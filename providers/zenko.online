@@ -56,6 +56,7 @@ process_book()
 	fi
 
 	# Get all chapters ids and sort them in ASC.
+	get_html_page_anonymous "$API_URL/titles/$BOOK_ID/chapters" $JSON_CHAPTERS
 	readarray -t CHAPTERS < <(php -f ./scripts/zenko-chapters.php $JSON_CHAPTERS)
 
 	# Download images from the chapters.
