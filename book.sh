@@ -2,8 +2,8 @@
 
 DIR=$(dirname $(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null||echo $0))
 
-VERSION="0.7"
-PROGRAM_NAME="Books Downloader"
+VERSION="0.8"
+PROGRAM_NAME="Books and Comics Downloader"
 # Get supported providers by the filename.
 readarray -t SUPPORTER_PROVIDERS < <(ls ./providers/ -1)
 PROVIDER_NAME=""
@@ -42,6 +42,16 @@ IMAGE_COVER_URL=""
 # Store images urls in array to process at the end of the file.
 IMAGES_URLS=()
 LIST_FILE=""
+TMP_DIR="./tmp"
+
+# Since some website use Cloudflare protection we can't use
+# direct curl requests to the ajaxed urls.
+# Curl Impersonate porject should be used.
+# https://github.com/lwthiker/curl-impersonate
+# Install it to some folder and provide the path in CURLIMP variable
+
+CURL_ORIG="/opt/curl-impersonate-v0.6.1.x86_64-linux-gnu/curl-impersonate-chrome -s"
+CURL_CHROME="/opt/curl-impersonate-v0.6.1.x86_64-linux-gnu/curl_chrome116 -s"
 
 # Loading helpers and packer.
 . "$DIR/scripts/helpers.sh"
@@ -116,8 +126,10 @@ for i in "${!URLS[@]}"; do
     process_book
 
     echo -e "Book possibly was saved to:$CBlue $FILENAME $CN"
-    echo -e "$CGreen --- Wait 60sec before next download --- $CN"
-    sleep 60
+    if [[ ${#URLS[@]} -gt 1 ]]; then
+        echo -e "$CGreen --- Wait 60sec before next download --- $CN"
+        sleep 60
+    fi
 done
 
 echo "$PROGRAM_NAME finished."

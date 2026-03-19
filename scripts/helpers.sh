@@ -12,8 +12,10 @@ get_host() {
 # $2 - meta property
 get_meta_property()
 {
-	grep -r ".*<meta property=\"$2\" content=\"\(.*\)\"" $1 |
-	sed -e "s/.* content=\"\(.*\)\".*/\1/"
+    tr '\n' ' ' < "$1" |
+    grep -o "<meta[^>]*property=\"$2\"[^>]*>" |
+    grep -o 'content="[^"]*"' |
+    sed 's/content="\(.*\)"/\1/'
 }
 
 # Get META content attr by name attr.
@@ -21,7 +23,7 @@ get_meta_property()
 # $2 - meta name
 get_meta_name()
 {
-	grep -r ".*<meta name=\"$2\" content=\"\(.*\)\"" $1 |
+	grep -r ".*<meta name=\"$2\" content=\"\(.*\)\"" "$1" |
 	sed -e "s/.* content=\"\(.*\)\".*/\1/"
 }
 
@@ -48,11 +50,24 @@ get_json_val()
 get_html_page()
 {
 	curl $1 \
-	-H 'accept: application/json, text/javascript, */*; q=0.01' \
+	# -H 'accept: application/json, text/javascript, */*; q=0.01' \
 	-H 'accept-language: en-US,en;q=0.9' \
 	-H 'cache-control: no-cache' \
 	-o "$2" \
 	--silent
+}
+
+# Download html.
+# $1 - URL
+# $2 - File to save
+# $3 - additional headers
+get_html_page_anonymous() {
+	local extra_headers=()
+	if [[ -n "$3" ]]; then
+		local arr="${3}[@]"
+		extra_headers=("${!arr}")
+	fi
+	$CURL_CHROME "$1" "${extra_headers[@]}" -o "$2"
 }
 
 show_help()
@@ -66,5 +81,17 @@ show_help()
 	printf 'You can use additional parameters:
 \t--list=FILEPATH\tUse the txt file with the list of urls to download.
 '
-    exit 0
+	exit 0
+}
+
+# Sanitize string to safe Linux filename
+# $1 - input string
+sanitize_filename() {
+	echo "$1" |
+	uconv -x "::NFD; ::[:Mn:] Remove; ::Latin; ::ASCII; ::NFC;" |
+	tr '[:upper:]' '[:lower:]' |
+	tr -s ' ' '-' |
+	tr -cd '[:alnum:]-_.' |
+	tr -s '-' |
+	sed 's/^[-.]//;s/[-.]$//'
 }

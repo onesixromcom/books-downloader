@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Cookie for authenticated download
 COOKIE_IDENTITY=""
 # Flag to force download of incomplete book.

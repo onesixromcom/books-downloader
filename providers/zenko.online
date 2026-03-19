@@ -1,8 +1,33 @@
 # Download comics from zenko.online
 
+# Requirements:
+# curl-impersonate
+
 JSON_INFO="$FILES_DIR/zenko_bookinfo.json"
 JSON_CHAPTERS="$FILES_DIR/zenko_chapters.html"
 JSON_CHAPTER="$FILES_DIR/zenko_chapter.html"
+
+PAGE_HTML="$FILES_DIR/zenko-page.html"
+
+API_URL="https://api.zenko.online"
+IMAGE_CDN="https://zenko.b-cdn.net"
+IMAGE_SUFFIX="?optimizer=image&width=900&quality=80&height=auto&format=jpeg"
+
+IMAGE_REQUEST_HEADERS=(
+	-H "accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+	-H "accept-language: en-US,en;q=0.9"
+	-H "cache-control: no-cache"
+	-H "pragma: no-cache"
+	-H "priority: i"
+	-H "referer: https://zenko.online/"
+	-H "sec-ch-ua-mobile: ?0"
+	-H "sec-ch-ua-platform: "Linux""
+	-H "sec-fetch-dest: empty"
+	-H "sec-fetch-mode: no-cors"
+	-H "sec-fetch-site: cross-site"
+	-H "sec-fetch-storage-access: none"
+	-H "user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+)
 
 #================== START ==================
 
@@ -10,20 +35,25 @@ process_book()
 {
 	# Get book id from the url.
 	BOOK_ID=$(echo "$URL" | sed -n 's|.*/titles/\([0-9]*\).*|\1|p')
+	echo "Book ID: $BOOK_ID"
 
-	# Get book information.
 	BOOK_DIR="$FILES_DIR/$BOOK_ID"
 	mkdir -p $BOOK_DIR
 
-	get_html_page "https://zenko-api.onrender.com/titles/$BOOK_ID" $JSON_INFO
+	get_html_page_anonymous "$URL" "$PAGE_HTML.orig.html"
+	cat "$PAGE_HTML.orig.html" | hxnormalize -x > "$PAGE_HTML"
 
-	BOOK_TITLE=$(get_json_val $JSON_INFO "name")
-
-	echo "$BOOK_TITLE"
-	BOOK_TITLE=$(echo $BOOK_TITLE | sed 's/ /-/g')
-	FILENAME="$BOOKS_DIR/$BOOK_TITLE.cbz"
-
-	get_html_page "https://zenko-api.onrender.com/titles/$BOOK_ID/chapters" $JSON_CHAPTERS
+	# Get book title.
+	BOOK_TITLE=$(get_meta_property $PAGE_HTML "og:image:alt")
+    # BOOK_TITLE=$(echo "$BOOK_TITLE" | sed 's/ /-/g')
+	FILENAME=$(sanitize_filename "$BOOK_TITLE")
+	FILENAME="$BOOKS_DIR/$FILENAME.cbz"
+	echo "Title: $BOOK_TITLE"
+	echo "Filename: $FILENAME"
+	if [ -z "$BOOK_TITLE" ]; then
+		echo "Book title not found."
+		exit
+	fi
 
 	# Get all chapters ids and sort them in ASC.
 	readarray -t CHAPTERS < <(php -f ./scripts/zenko-chapters.php $JSON_CHAPTERS)
@@ -33,7 +63,8 @@ process_book()
 	ZEROS=0000
 	echo "Number of Chapters: ${#CHAPTERS[@]}"
 	for chapter_id in "${CHAPTERS[@]}"; do
-		get_html_page "https://zenko-api.onrender.com/chapters/$chapter_id" $JSON_CHAPTER
+		echo "Processing Chapter $chapter_id"
+		get_html_page_anonymous "$API_URL/chapters/$chapter_id" $JSON_CHAPTER
 
 		readarray -t IMAGES < <(php -f ./scripts/zenko-pages.php $JSON_CHAPTER)
 		echo "Number of images: ${#IMAGES[@]}"
@@ -41,14 +72,17 @@ process_book()
 		for image_id in "${IMAGES[@]}"; do
 			IMAGE_NAME="file${ZEROS:${#IMAGE_COUNTER}}${IMAGE_COUNTER}"
 			echo "Download image $IMAGE_NAME: $image_id"
-			get_html_page "https://zenko.b-cdn.net/$image_id" "$BOOK_DIR/$IMAGE_NAME.webp"
+			get_html_page_anonymous "$IMAGE_CDN/$image_id$IMAGE_SUFFIX" "$BOOK_DIR/$IMAGE_NAME.jpg" IMAGE_REQUEST_HEADERS
+
 			IMAGE_COUNTER=$((IMAGE_COUNTER+1))
 		done
 	done
 
-	echo "+++ Convert images to JPG +++"
-	for i in $BOOK_DIR/*.webp; do name=`echo "$i" | cut -d'.' -f1`; convert "$i" "${name}.jpg"; done
-
 	# Create final book.
-	zip -q $FILENAME $BOOK_DIR/*.jpg
+	images_converted=("$BOOK_DIR"/*.jpg)
+	if [[ ! -e "${images_converted[0]}" ]]; then
+		echo "No .png images found in '$BOOK_DIR'" >&2
+	else
+		zip -q $FILENAME $BOOK_DIR/*.jpg
+	fi
 }
