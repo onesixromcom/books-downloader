@@ -123,6 +123,7 @@ for i in "${!URLS[@]}"; do
     # Create folder
     [ -d $BOOKS_DIR ] || mkdir -p $BOOKS_DIR
 
+    IMAGES_URLS=()
     process_book
 
     echo -e "Book possibly was saved to:$CBlue $FILENAME $CN"

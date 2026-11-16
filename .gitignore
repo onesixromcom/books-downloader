@@ -4,4 +4,4 @@ files/*
 images/*
 tmp
 !files/.gitfolder
-!images/.gitfolder
+!images/.gitfolderkindle/test/out/
